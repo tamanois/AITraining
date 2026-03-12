@@ -1,32 +1,17 @@
 
-from transformers import LayoutLMv3Processor, LayoutLMv3ForTokenClassification, LayoutLMv3Config
+from transformers import LayoutLMv3Processor, LayoutLMv3ForTokenClassification
 from PIL import Image
 import torch
 from paddleocr import PaddleOCR
 import numpy as np
 
 image_path = "/home/joel/Downloads/ikea-receipt.jpg"
-processor_id = "microsoft/layoutlmv3-base"
 model_name = "Theivaprakasham/layoutlmv3-finetuned-sroie"
-weights_path = "/home/joel/Desktop/projects/test-ai/train-receipts/SROIE/layoutlmv3_best.pt"
+# Load processor and model
+processor = LayoutLMv3Processor.from_pretrained(model_name)
+model = LayoutLMv3ForTokenClassification.from_pretrained(model_name)
 
-# 1. Initialize Processor
-processor = LayoutLMv3Processor.from_pretrained(processor_id, apply_ocr=False)
-
-# 2. Initialize Model Architecture and Load Local Weights
-# Note: num_labels should match your training (SROIE usually has 9 or 5 depending on tagging)
-config = LayoutLMv3Config.from_pretrained(processor_id, num_labels=9)
-model = LayoutLMv3ForTokenClassification(config)
-
-# Load the .pt file
-state_dict = torch.load(weights_path, map_location="cpu")
-model.load_state_dict(state_dict)
 model.eval()
-
-# 3. Setup Mapping (Ensure these match your training labels)
-id2label = {0: 'O', 1: 'B-COMPANY', 2: 'I-COMPANY', 3: 'B-DATE', 4: 'I-DATE', 
-            5: 'B-ADDRESS', 6: 'I-ADDRESS', 7: 'B-TOTAL', 8: 'I-TOTAL'}
-model.config.id2label = id2label
 
 # Load image
 image = Image.open(image_path).convert("RGB")
@@ -36,7 +21,7 @@ width, height = image.size
 ocr = PaddleOCR(use_textline_orientation=True, lang='en', enable_mkldnn=False)
 
 # Reduce image size for faster OCR processing
-max_dim = 1500
+max_dim = 1024
 if max(width, height) > max_dim:
     scale = max_dim / max(width, height)
     new_width = int(width * scale)

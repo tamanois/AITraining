@@ -4,4 +4,8 @@ datasets
 seqeval
 Pillow
 tqdm
-numpy
+paddlepaddle==2.6.2
+paddleocr==2.7.3
+# Crucial: Paddle 2.6.2 is NOT compatible with NumPy 2.0+
+numpy<2.0.0
+paddlex

@@ -158,6 +158,41 @@ def label_tokens(tokens, entities):
 
     return labels
 
+def label_tokens2(tokens, entities):
+
+    labels = ["O"] * len(tokens)
+    print(f"Labeling tokens: {tokens} with entities: {entities}")
+
+    for key, value in entities.items():
+        print(f"Processing entity: {key.upper()} with value: {value}")
+
+        value_tokens = value.split()
+        print(f"Value tokens: {value_tokens}")
+
+        tokens_str = " ".join(tokens)
+        splitted_tokens = tokens_str.split()
+        print(f"Splitted tokens: {splitted_tokens}")
+        
+        for i in range(len(tokens)):
+
+            for x in range(len(splitted_tokens)):
+                window = splitted_tokens[x:x+len(value_tokens)]
+                print(f"Window: {window}")
+
+                if window == value_tokens:
+                    print(f"Match found for entity: {key.upper()} at position {x} of splitted tokens")
+
+                    labels[i] = f"B-{key.upper()}"
+                    print(f"Label assigned: {labels[i]} for token: {splitted_tokens[i]}clear")
+
+                    for j in range(1,len(value_tokens)):
+                        labels[i+j] = f"I-{key.upper()}"
+                        print(f"Label assigned: {labels[i+j]} for token: {splitted_tokens[i+j]}")
+                    # if we found a match, we can break out of the loop to avoid multiple matches for the same entity
+                    break
+
+    return labels
+
 def company_match(category, token, entity_value):
     # exclude numbers
     try:
