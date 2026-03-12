@@ -5,30 +5,36 @@ from dataset import SROIEDataset
 import numpy as np
 from seqeval.metrics import classification_report,f1_score
 
-train_dataset_file_path = "/home/joel/Desktop/datasets/SROIE2019/sroie_train.json"
-test_dataset_file_path = "/home/joel/Desktop/datasets/SROIE2019/sroie_test.json"
-model_str = "microsoft/layoutlmv3-base"
+train_dataset_file_path = "/home/joel/Desktop/Sync/latitude-7420-shared/datasets/SROIE2019/sroie_train.json"
+test_dataset_file_path = "/home/joel/Desktop/Sync/latitude-7420-shared/datasets/SROIE2019/sroie_test.json"
+base_model = "microsoft/layoutlmv3-base"
+model_save_dir = "/home/joel/projects/AITraining/SROIE/models/layoutlmv3-sroie2"
+
 
 LABELS = [
-"O",
-"B-COMPANY","I-COMPANY",
-"B-DATE","I-DATE",
-"B-ADDRESS","I-ADDRESS",
-"B-TOTAL","I-TOTAL"
+    "O",
+    "B-COMPANY","I-COMPANY",
+    "B-DATE","I-DATE",
+    "B-ADDRESS","I-ADDRESS",
+    "B-TOTAL","I-TOTAL"
 ]
 
 label2id = {l:i for i,l in enumerate(LABELS)}
 id2label = {i:l for l,i in label2id.items()}
 
 processor = LayoutLMv3Processor.from_pretrained(
-    model_str,
-    apply_ocr=False
+    base_model,
+    apply_ocr=False, 
 )
+
+# Manually override the image resizing parameters
+processor.image_processor.size = {"height": 224, "width": 224} 
+# Note: LayoutLMv3 works best with square images
 
 train_dataset = SROIEDataset(
     train_dataset_file_path,
     processor,
-    label2id
+    label2id,
 )
 
 test_dataset = SROIEDataset(
@@ -38,7 +44,7 @@ test_dataset = SROIEDataset(
 )
 
 model = LayoutLMv3ForTokenClassification.from_pretrained(
-    model_str,
+    base_model,
     num_labels=len(LABELS),
     id2label=id2label,
     label2id=label2id
@@ -68,12 +74,15 @@ def compute_metrics(p):
 
 training_args = TrainingArguments(
 
-    output_dir="models/layoutlmv3-sroie",
+    output_dir= model_save_dir,
 
     learning_rate=5e-5,
 
-    per_device_train_batch_size=4,
-    per_device_eval_batch_size=4,
+    per_device_train_batch_size=3,
+    per_device_eval_batch_size=3,
+    gradient_accumulation_steps=4,
+
+    fp16=True,
 
     num_train_epochs=10,
 
@@ -81,9 +90,11 @@ training_args = TrainingArguments(
 
     save_strategy="epoch",
 
-    logging_steps=50,
+    logging_steps=10,
 
-    load_best_model_at_end=True
+    load_best_model_at_end=True,
+
+    dataloader_pin_memory=False
 )
 
 trainer = Trainer(
@@ -96,6 +107,7 @@ trainer = Trainer(
 
     eval_dataset=test_dataset,
 
+
     #tokenizer=processor,
 
     compute_metrics=compute_metrics
@@ -103,4 +115,5 @@ trainer = Trainer(
 
 trainer.train()
 
-trainer.save_model("models/layoutlmv3-sroie")
+trainer.save_model(model_save_dir)
+processor.save_pretrained(model_save_dir)

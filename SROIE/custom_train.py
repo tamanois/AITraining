@@ -11,9 +11,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 logging.info(f"Using device: {device}")
 
-train_dataset_file_path = "/home/joel/Desktop/datasets/SROIE2019/sroie_train.json"
-test_dataset_file_path = "/home/joel/Desktop/datasets/SROIE2019/sroie_test.json"
-model_str = "microsoft/layoutlmv3-base"
+train_dataset_file_path = "/home/joel/Desktop/Sync/latitude-7420-shared/datasets/SROIE2019/sroie_train.json"
+test_dataset_file_path = "/home/joel/Desktop/Sync/latitude-7420-shared/datasets/SROIE2019/sroie_test.json"
+base_model = "microsoft/layoutlmv3-base"
+model_save_dir = "/home/joel/projects/AITraining/SROIE/models/torch-layoutlmv3-sroie"
 
 LABELS = [
 "O",
@@ -28,9 +29,12 @@ id2label = {i:l for l,i in label2id.items()}
 
 logging.info("Loading processor and model...")
 processor = LayoutLMv3Processor.from_pretrained(
-    model_str,
+    base_model,
     apply_ocr=False
 )
+
+# Manually override the image resizing parameters
+processor.image_processor.size = {"height": 224, "width": 224} 
     
 logging.info("Processor loaded successfully.")
 
@@ -70,7 +74,7 @@ val_loader = DataLoader(
 
 
 model = LayoutLMv3ForTokenClassification.from_pretrained(
-    model_str,
+    base_model,
     num_labels=len(LABELS)
 )
 model.to(device)

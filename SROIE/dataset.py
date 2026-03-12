@@ -29,7 +29,7 @@ class SROIEDataset(Dataset):
             word_labels=[self.label2id[l] for l in item["labels"]],
             truncation=True,
             padding="max_length",
-            max_length=512,
+            max_length=256,
             return_tensors="pt"
         )
 

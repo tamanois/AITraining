@@ -5,10 +5,11 @@ import torch
 from paddleocr import PaddleOCR
 import numpy as np
 
-image_path = "/home/joel/Downloads/ikea-receipt.jpg"
-model_name = "Theivaprakasham/layoutlmv3-finetuned-sroie"
+image_path = "/home/joel/Desktop/Sync/latitude-7420-shared/imgs/receipts/ikea-receipt.jpg"
+model_name = "/home/joel/projects/AITraining/SROIE/models/layoutlmv3-sroie2"
+
 # Load processor and model
-processor = LayoutLMv3Processor.from_pretrained(model_name)
+processor = LayoutLMv3Processor.from_pretrained(model_name, apply_ocr=False)
 model = LayoutLMv3ForTokenClassification.from_pretrained(model_name)
 
 model.eval()
@@ -17,16 +18,20 @@ model.eval()
 image = Image.open(image_path).convert("RGB")
 width, height = image.size
 
+print("Image original size:", width, height)
+
 # Run PaddleOCR
 ocr = PaddleOCR(use_textline_orientation=True, lang='en', enable_mkldnn=False)
 
 # Reduce image size for faster OCR processing
-max_dim = 1024
+max_dim = 1500
 if max(width, height) > max_dim:
     scale = max_dim / max(width, height)
     new_width = int(width * scale)
     new_height = int(height * scale)
     image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+print("Image resized for OCR:", image.size)
 
 ocr_result = ocr.ocr(np.array(image), cls=True)
 
@@ -81,17 +86,17 @@ entities = {
 }
 
 for token, label in zip(tokens, pred_labels):
-    if token in ["[CLS]", "[SEP]", "[PAD]"]:
-        continue
+    # if token in ["[CLS]", "[SEP]", "[PAD]"]:
+    #     continue
     token = token.replace("Ġ", "").replace("▁", "")
     if label == "B-COMPANY" or label == "I-COMPANY":
-        entities["company"].append(token)
+        entities["company"].append(token.strip())
     elif label == "B-ADDRESS" or label == "I-ADDRESS":
-        entities["address"].append(token)
+        entities["address"].append(token.strip())
     elif label == "B-DATE" or label == "I-DATE":
-        entities["date"].append(token)
+        entities["date"].append(token.strip())
     elif label == "B-TOTAL" or label == "I-TOTAL":
-        entities["total"].append(token)
+        entities["total"].append(token.strip())
 
 # Join tokens into strings
 result = {
