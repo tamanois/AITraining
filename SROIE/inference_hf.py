@@ -5,8 +5,9 @@ import torch
 from paddleocr import PaddleOCR
 import numpy as np
 
-image_path = "/home/joel/Desktop/Sync/latitude-7420-shared/imgs/receipts/ikea-receipt.jpg"
-model_name = "/home/joel/projects/AITraining/SROIE/models/layoutlmv3-sroie2"
+image_path = "/home/joel/Desktop/Sync/latitude-7420-shared/imgs/receipts/receipt.png"
+model_name = "/home/joel/projects/AITraining/SROIE/models/layoutlmv3-sroie-tuned"
+#model_name = "Theivaprakasham/layoutlmv3-finetuned-sroie"
 
 # Load processor and model
 processor = LayoutLMv3Processor.from_pretrained(model_name, apply_ocr=False)
@@ -21,7 +22,24 @@ width, height = image.size
 print("Image original size:", width, height)
 
 # Run PaddleOCR
-ocr = PaddleOCR(use_textline_orientation=True, lang='en', enable_mkldnn=False)
+ocr = PaddleOCR(
+       layout=True,
+    table=True,
+    ocr=True,
+    recovery=False,
+    use_pdf2docx_api=False,
+    invert=False,
+    binarize=False,
+    alphacolor=(255, 255, 255),
+    lang='en',
+    det=True,
+    rec=True,
+    type='ocr',
+    use_angle_cls=True,
+    ocr_version='PP-OCRv4',
+    structure_version='PP-StructureV2',
+    enable_mkldnn=False
+)
 
 # Reduce image size for faster OCR processing
 max_dim = 1500
@@ -34,6 +52,9 @@ if max(width, height) > max_dim:
 print("Image resized for OCR:", image.size)
 
 ocr_result = ocr.ocr(np.array(image), cls=True)
+
+curr_width, curr_height = image.size
+
 
 # Extract words and bounding boxes
 words = []
@@ -50,15 +71,14 @@ for line in ocr_result[0]:
     ymax = int(max(points[:, 1]))
     # Normalize to 0-1000 as required by LayoutLMv3
     norm_box = [
-        int(1000 * xmin / width),
-        int(1000 * ymin / height),
-        int(1000 * xmax / width),
-        int(1000 * ymax / height)
+        int(1000 * xmin / curr_width),
+        int(1000 * ymin / curr_height),
+        int(1000 * xmax / curr_width),
+        int(1000 * ymax / curr_height)
     ]
     words.append(text)
     boxes.append(norm_box)
 
-    print(f"Detected word: '{text}' with box: {norm_box}")
 
 # Encode image, words, and boxes
 encoding = processor(image, text=words, boxes=boxes, return_tensors="pt")

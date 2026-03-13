@@ -9,21 +9,25 @@ train_dataset_file_path = "/home/joel/Desktop/Sync/latitude-7420-shared/datasets
 test_dataset_file_path = "/home/joel/Desktop/Sync/latitude-7420-shared/datasets/SROIE2019/sroie_test.json"
 #base_model = "microsoft/layoutlmv3-base"
 base_model = "Theivaprakasham/layoutlmv3-finetuned-sroie"
-model_save_dir = "/home/joel/projects/AITraining/SROIE/models/layoutlmv3-sroie"
+model_save_dir = "/home/joel/projects/AITraining/SROIE/models/layoutlmv3-sroie-tuned"
 
-######
+###### FINE TUNE VALUES ######
+LEARNING_RATE = 1e-5
+EPOCHS = 5
+WARMUP_RATIO = 0.1
+WEIGHT_DECAY = 0.01
+FREEZE = False
+BATCH_SIZE = 4
+##############################
 
+model = LayoutLMv3ForTokenClassification.from_pretrained(base_model)
 
-LABELS = [
-    "O",
-    "B-COMPANY","I-COMPANY",
-    "B-DATE","I-DATE",
-    "B-ADDRESS","I-ADDRESS",
-    "B-TOTAL","I-TOTAL"
-]
+# Use the model's existing label mapping
+id2label = model.config.id2label
+label2id = model.config.label2id
+LABELS = [id2label[i] for i in range(len(id2label))]
 
-label2id = {l:i for i,l in enumerate(LABELS)}
-id2label = {i:l for l,i in label2id.items()}
+print("Label to ID mapping:", label2id)
 
 processor = LayoutLMv3Processor.from_pretrained(
     base_model,
@@ -46,12 +50,13 @@ test_dataset = SROIEDataset(
     label2id
 )
 
-model = LayoutLMv3ForTokenClassification.from_pretrained(
-    base_model,
-    num_labels=len(LABELS),
-    id2label=id2label,
-    label2id=label2id
-)
+print(f"Training samples: {len(train_dataset)}")
+print(f"Test samples: {len(test_dataset)}")
+
+if FREEZE:
+    print("Freezing base model parameters...")
+    for param in model.base_model.parameters():
+        param.requires_grad = False
 
 
 def compute_metrics(p):
@@ -76,47 +81,35 @@ def compute_metrics(p):
 
 
 training_args = TrainingArguments(
-
     output_dir= model_save_dir,
-
-    learning_rate=5e-5,
-
-    per_device_train_batch_size=3,
-    per_device_eval_batch_size=3,
+    learning_rate=LEARNING_RATE,
+    per_device_train_batch_size=BATCH_SIZE,
+    per_device_eval_batch_size=BATCH_SIZE,
     gradient_accumulation_steps=4,
-
     fp16=True,
-
-    num_train_epochs=20,
-
+    num_train_epochs=EPOCHS,
     eval_strategy="epoch",
-
     save_strategy="epoch",
-
     logging_steps=50,
-
     load_best_model_at_end=True,
-
-    dataloader_pin_memory=False
+    dataloader_pin_memory=False,
+    warmup_ratio=WARMUP_RATIO,
+    weight_decay=WEIGHT_DECAY,
 )
 
 trainer = Trainer(
 
     model=model,
-
     args=training_args,
-
     train_dataset=train_dataset,
-
     eval_dataset=test_dataset,
-
-
     #tokenizer=processor,
-
     compute_metrics=compute_metrics
 )
 
+print("Starting training...")
 trainer.train()
 
 trainer.save_model(model_save_dir)
 processor.save_pretrained(model_save_dir)
+print(f"End Training. Model and processor saved to {model_save_dir}")

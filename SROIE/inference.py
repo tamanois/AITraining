@@ -5,10 +5,9 @@ import torch
 from paddleocr import PaddleOCR
 import numpy as np
 
-image_path = "/home/joel/Downloads/ikea-receipt.jpg"
+image_path = "/home/joel/Desktop/Sync/latitude-7420-shared/imgs/receipts/receipt.png"
 processor_id = "microsoft/layoutlmv3-base"
-model_name = "Theivaprakasham/layoutlmv3-finetuned-sroie"
-weights_path = "/home/joel/Desktop/projects/test-ai/train-receipts/SROIE/layoutlmv3_best.pt"
+weights_path = "/home/joel/projects/AITraining/SROIE/models/torch-layoutlmv3-sroie/layoutlmv3_best.pt"  # Path to your .pt file
 
 # 1. Initialize Processor
 processor = LayoutLMv3Processor.from_pretrained(processor_id, apply_ocr=False)
@@ -33,7 +32,23 @@ image = Image.open(image_path).convert("RGB")
 width, height = image.size
 
 # Run PaddleOCR
-ocr = PaddleOCR(use_textline_orientation=True, lang='en', enable_mkldnn=False)
+ocr = PaddleOCR(
+    layout=True,
+    table=True,
+    ocr=True,
+    recovery=False,
+    use_pdf2docx_api=False,
+    invert=False,
+    binarize=False,
+    alphacolor=(255, 255, 255),
+    lang='en',
+    det=True,
+    rec=True,
+    type='ocr',
+    use_angle_cls=True,
+    ocr_version='PP-OCRv4',
+    structure_version='PP-StructureV2',
+    enable_mkldnn=False)
 
 # Reduce image size for faster OCR processing
 max_dim = 1500
@@ -44,6 +59,7 @@ if max(width, height) > max_dim:
     image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
 ocr_result = ocr.ocr(np.array(image), cls=True)
+curr_width, curr_height = image.size
 
 # Extract words and bounding boxes
 words = []
@@ -60,10 +76,10 @@ for line in ocr_result[0]:
     ymax = int(max(points[:, 1]))
     # Normalize to 0-1000 as required by LayoutLMv3
     norm_box = [
-        int(1000 * xmin / width),
-        int(1000 * ymin / height),
-        int(1000 * xmax / width),
-        int(1000 * ymax / height)
+        int(1000 * xmin / curr_width),
+        int(1000 * ymin / curr_height),
+        int(1000 * xmax / curr_width),
+        int(1000 * ymax / curr_height)
     ]
     words.append(text)
     boxes.append(norm_box)
